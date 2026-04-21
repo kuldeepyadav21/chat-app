@@ -46,89 +46,108 @@ function App() {
   }, [messageList]);
 
   return (
-    <div style={{ textAlign: "center" }}>
-      {!showChat ? (
-        <div>
-          <h2>Join Chat</h2>
+  <div style={{ fontFamily: "Arial", background: "#ece5dd", height: "100vh" }}>
+    {!showChat ? (
+      <div style={{ textAlign: "center", paddingTop: "100px" }}>
+        <h2>Join Chat</h2>
 
-          <input
-            placeholder="Enter username..."
-            onChange={(e) => setUsername(e.target.value)}
-          />
+        <input
+          placeholder="Username"
+          onChange={(e) => setUsername(e.target.value)}
+          style={{ padding: "10px", margin: "5px" }}
+        />
 
-          <input
-            placeholder="Enter room ID..."
-            onChange={(e) => setRoom(e.target.value)}
-          />
+        <input
+          placeholder="Room ID"
+          onChange={(e) => setRoom(e.target.value)}
+          style={{ padding: "10px", margin: "5px" }}
+        />
 
-          <button
-            onClick={() => {
-              if (username !== "" && room !== "") {
-                socket.emit("join_room", room);
-                setShowChat(true);
-              }
-            }}
-          >
-            Join
-          </button>
+        <br />
+
+        <button
+          onClick={() => {
+            if (username !== "" && room !== "") {
+              socket.emit("join_room", room);
+              setShowChat(true);
+            }
+          }}
+          style={{ padding: "10px 20px", marginTop: "10px" }}
+        >
+          Join
+        </button>
+      </div>
+    ) : (
+      <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+        
+        {/* Header */}
+        <div
+          style={{
+            background: "#075E54",
+            color: "white",
+            padding: "15px",
+            fontWeight: "bold",
+          }}
+        >
+          Room: {room}
         </div>
-      ) : (
-        <div>
-          <h2>Real-Time Chat</h2>
 
-          <div
-            style={{
-              height: "300px",
-              border: "1px solid black",
-              overflowY: "scroll",
-            }}
-          >
-            {messageList.map((msg, index) => {
-              return (
-                <div
-                  key={index}
-                  style={{
-                    display: "flex",
-                    justifyContent:
-                      msg.author === username ? "flex-end" : "flex-start",
-                  }}
-                >
-                  <div
-                    style={{
-                      background:
-                        msg.author === username ? "#4CAF50" : "#e5e5ea",
-                      color:
-                        msg.author === username ? "white" : "black",
-                      padding: "10px",
-                      borderRadius: "10px",
-                      margin: "5px",
-                      maxWidth: "60%",
-                    }}
-                  >
-                    <p style={{ margin: 0 }}>
-                      <strong>{msg.author}</strong>: {msg.message}
-                    </p>
-                    <small>{msg.time}</small>
-                  </div>
-                </div>
-              );
-            })}
+        {/* Messages */}
+        <div
+          style={{
+            flex: 1,
+            padding: "10px",
+            overflowY: "scroll",
+          }}
+        >
+          {messageList.map((msg, index) => (
+            <div
+              key={index}
+              style={{
+                display: "flex",
+                justifyContent:
+                  msg.author === username ? "flex-end" : "flex-start",
+              }}
+            >
+              <div
+                style={{
+                  background:
+                    msg.author === username ? "#25D366" : "#ffffff",
+                  color: "black",
+                  padding: "10px",
+                  borderRadius: "10px",
+                  margin: "5px",
+                  maxWidth: "60%",
+                }}
+              >
+                <strong>{msg.author}</strong>
+                <p style={{ margin: 0 }}>{msg.message}</p>
+                <small>{msg.time}</small>
+              </div>
+            </div>
+          ))}
+          <div ref={chatEndRef}></div>
+        </div>
 
-            {/* ✅ THIS WAS MISSING */}
-            <div ref={chatEndRef}></div>
-          </div>
-
+        {/* Input */}
+        <div
+          style={{
+            display: "flex",
+            padding: "10px",
+            background: "#f0f0f0",
+          }}
+        >
           <input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Type message..."
+            style={{ flex: 1, padding: "10px" }}
           />
-
-          <button onClick={sendMessage}>Send</button>
+          <button onClick={sendMessage} style={{ marginLeft: "10px" }}>
+            Send
+          </button>
         </div>
-      )}
-    </div>
-  );
-}
-
-export default App;
+      </div>
+    )}
+  </div>
+);
