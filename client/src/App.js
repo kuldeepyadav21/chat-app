@@ -47,7 +47,6 @@ function App() {
 
   return (
   <div style={{ fontFamily: "Arial", background: "#ece5dd", height: "100vh" }}>
-    <h1>NEW UI TEST</h1>
     {!showChat ? (
       <div style={{ textAlign: "center", paddingTop: "100px" }}>
         <h2>Join Chat</h2>
