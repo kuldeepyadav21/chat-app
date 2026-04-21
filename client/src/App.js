@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
 
-const socket = io("https://chat-app-server-qklq.onrender.com"); // ⚠️ replace with your Render backend URL
+const socket = io("https://chat-app-server-qklq.onrender.com"); // ⚠️ replace with your backend URL
 
 function App() {
   const [username, setUsername] = useState("");
@@ -9,6 +9,7 @@ function App() {
   const [showChat, setShowChat] = useState(false);
   const [message, setMessage] = useState("");
   const [messageList, setMessageList] = useState([]);
+  const [typingStatus, setTypingStatus] = useState("");
 
   const chatEndRef = useRef(null);
 
@@ -34,6 +35,20 @@ function App() {
     socket.on("receive_message", (data) => {
       setMessageList((list) => [...list, data]);
     });
+
+    socket.on("show_typing", () => {
+      setTypingStatus("Someone is typing...");
+    });
+
+    socket.on("hide_typing", () => {
+      setTypingStatus("");
+    });
+
+    return () => {
+      socket.off("receive_message");
+      socket.off("show_typing");
+      socket.off("hide_typing");
+    };
   }, []);
 
   useEffect(() => {
@@ -121,6 +136,12 @@ function App() {
                 </div>
               </div>
             ))}
+
+            {/* ✅ Typing indicator */}
+            <p style={{ fontStyle: "italic", color: "gray" }}>
+              {typingStatus}
+            </p>
+
             <div ref={chatEndRef}></div>
           </div>
 
@@ -134,7 +155,15 @@ function App() {
           >
             <input
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={(e) => {
+                setMessage(e.target.value);
+
+                socket.emit("typing", room);
+
+                setTimeout(() => {
+                  socket.emit("stop_typing", room);
+                }, 1000);
+              }}
               placeholder="Type message..."
               style={{ flex: 1, padding: "10px" }}
             />

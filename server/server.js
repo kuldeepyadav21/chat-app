@@ -24,6 +24,15 @@ io.on("connection", (socket) => {
   socket.on("send_message", (data) => {
     socket.to(data.room).emit("receive_message", data);
   });
+
+  // ✅ Typing indicator
+  socket.on("typing", (room) => {
+    socket.to(room).emit("show_typing");
+  });
+
+  socket.on("stop_typing", (room) => {
+    socket.to(room).emit("hide_typing");
+  });
 });
 
 const PORT = process.env.PORT || 5001;
