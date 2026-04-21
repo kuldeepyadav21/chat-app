@@ -13,18 +13,22 @@ function App() {
   const chatEndRef = useRef(null);
 
   const sendMessage = () => {
-    if (message !== "") {
-      const messageData = {
-        room: room,
-        author: username,
-        message: message,
-        time: new Date().toLocaleTimeString(),
-      };
+  if (message !== "") {
+    const messageData = {
+      room: room,
+      author: username,
+      message: message,
+      time: new Date().toLocaleTimeString(),
+    };
 
-      socket.emit("send_message", messageData);
-      setMessage("");
-    }
-  };
+    socket.emit("send_message", messageData);
+
+    // ✅ ADD THIS LINE (important)
+    setMessageList((list) => [...list, messageData]);
+
+    setMessage("");
+  }
+};
 
   useEffect(() => {
     socket.on("receive_message", (data) => {
