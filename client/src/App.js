@@ -1,37 +1,38 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import io from "socket.io-client";
 
-const socket = io("https://chat-app-server-qklq.onrender.com"); // ⚠️ replace with your backend URL
+const socket = io("https://chat-app-server-qklq.onrender.com");
 
 function App() {
   const [username, setUsername] = useState("");
   const [room, setRoom] = useState("");
   const [showChat, setShowChat] = useState(false);
-  const [message, setMessage] = useState("");
+
+  const [currentMessage, setCurrentMessage] = useState("");
   const [messageList, setMessageList] = useState([]);
   const [typingStatus, setTypingStatus] = useState("");
 
-  const chatEndRef = useRef(null);
-
-  const sendMessage = async () => {
-    if (message !== "") {
-      const messageData = {
-        room: room,
-        author: username,
-        message: message,
-        time:
-          new Date().getHours() +
-          ":" +
-          new Date().getMinutes(),
-      };
-
-      await socket.emit("send_message", messageData);
-      setMessageList((list) => [...list, messageData]);
-      setMessage("");
-    }
-  };
-
+  // ✅ Auto join after refresh
   useEffect(() => {
+    const savedUsername = localStorage.getItem("username");
+    const savedRoom = localStorage.getItem("room");
+
+    if (savedUsername && savedRoom) {
+      setUsername(savedUsername);
+      setRoom(savedRoom);
+      setShowChat(true);
+
+      socket.emit("join_room", savedRoom);
+    }
+  }, []);
+
+  // ✅ Socket listeners
+  useEffect(() => {
+    socket.on("load_messages", (data) => {
+      console.log("Loaded messages:", data);
+      setMessageList(data);
+    });
+
     socket.on("receive_message", (data) => {
       setMessageList((list) => [...list, data]);
     });
@@ -45,132 +46,126 @@ function App() {
     });
 
     return () => {
+      socket.off("load_messages");
       socket.off("receive_message");
       socket.off("show_typing");
       socket.off("hide_typing");
     };
   }, []);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messageList]);
+  // ✅ Join room
+  const joinRoom = () => {
+    if (username !== "" && room !== "") {
+      socket.emit("join_room", room);
+
+      localStorage.setItem("username", username);
+      localStorage.setItem("room", room);
+
+      setShowChat(true);
+    }
+  };
+
+  // ✅ Send message
+  const sendMessage = async () => {
+    if (currentMessage !== "") {
+      const messageData = {
+        room: room,
+        author: username,
+        message: currentMessage,
+        time: new Date().toLocaleTimeString(),
+      };
+
+      await socket.emit("send_message", messageData);
+      
+      setCurrentMessage("");
+      socket.emit("stop_typing", room);
+    }
+  };
+
+  // ✅ Typing handler
+  const handleTyping = (e) => {
+    setCurrentMessage(e.target.value);
+
+    socket.emit("typing", room);
+
+    setTimeout(() => {
+      socket.emit("stop_typing", room);
+    }, 1000);
+  };
 
   return (
     <div style={{ fontFamily: "Arial", background: "#ece5dd", height: "100vh" }}>
       {!showChat ? (
         <div style={{ textAlign: "center", paddingTop: "100px" }}>
           <h2>Join Chat</h2>
-
           <input
-            placeholder="Username"
+            placeholder="Username..."
             onChange={(e) => setUsername(e.target.value)}
-            style={{ padding: "10px", margin: "5px" }}
           />
-
+          <br /><br />
           <input
-            placeholder="Room ID"
+            placeholder="Room ID..."
             onChange={(e) => setRoom(e.target.value)}
-            style={{ padding: "10px", margin: "5px" }}
           />
-
-          <br />
-
-          <button
-            onClick={() => {
-              if (username !== "" && room !== "") {
-                socket.emit("join_room", room);
-                setShowChat(true);
-              }
-            }}
-            style={{ padding: "10px 20px", marginTop: "10px" }}
-          >
-            Join
-          </button>
+          <br /><br />
+          <button onClick={joinRoom}>Join Chat</button>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-          
-          {/* Header */}
-          <div
-            style={{
-              background: "#075E54",
-              color: "white",
-              padding: "15px",
-              fontWeight: "bold",
-            }}
-          >
-            Room: {room}
-          </div>
+        <div style={{ maxWidth: "600px", margin: "auto", paddingTop: "20px" }}>
+          <h3>Room: {room}</h3>
 
-          {/* Messages */}
           <div
             style={{
-              flex: 1,
-              padding: "10px",
+              height: "400px",
               overflowY: "scroll",
+              background: "#fff",
+              padding: "10px",
+              borderRadius: "10px",
             }}
           >
             {messageList.map((msg, index) => (
               <div
                 key={index}
                 style={{
-                  display: "flex",
-                  justifyContent:
-                    msg.author === username ? "flex-end" : "flex-start",
+                  textAlign:
+                    username === msg.author ? "right" : "left",
+                  margin: "10px",
                 }}
               >
                 <div
                   style={{
-                    background:
-                      msg.author === username ? "#25D366" : "#ffffff",
-                    color: "black",
+                    display: "inline-block",
                     padding: "10px",
                     borderRadius: "10px",
-                    margin: "5px",
-                    maxWidth: "60%",
+                    background:
+                      username === msg.author ? "#dcf8c6" : "#fff",
                   }}
                 >
-                  <strong>{msg.author}</strong>
-                  <p style={{ margin: 0 }}>{msg.message}</p>
-                  <small>{msg.time}</small>
+                  <p>{msg.message}</p>
+                  <small>
+                    {msg.author} | {msg.time}
+                  </small>
                 </div>
               </div>
             ))}
-
-            {/* ✅ Typing indicator */}
-            <p style={{ fontStyle: "italic", color: "gray" }}>
-              {typingStatus}
-            </p>
-
-            <div ref={chatEndRef}></div>
           </div>
 
-          {/* Input */}
-          <div
-            style={{
-              display: "flex",
-              padding: "10px",
-              background: "#f0f0f0",
+          <p>{typingStatus}</p>
+
+          <input
+            type="text"
+            value={currentMessage}
+            placeholder="Type message..."
+            onChange={handleTyping}
+            onKeyPress={(e) => {
+              if (e.key === "Enter") {
+                sendMessage();
+              }
             }}
-          >
-            <input
-              value={message}
-              onChange={(e) => {
-                setMessage(e.target.value);
+            style={{ width: "80%", padding: "10px" }}
+          />
 
-                socket.emit("typing", room);
-
-                setTimeout(() => {
-                  socket.emit("stop_typing", room);
-                }, 1000);
-              }}
-              placeholder="Type message..."
-              style={{ flex: 1, padding: "10px" }}
-            />
-            <button onClick={sendMessage} style={{ marginLeft: "10px" }}>
-              Send
-            </button>
-          </div>
+          <button onClick={sendMessage}>Send</button>
         </div>
       )}
     </div>
