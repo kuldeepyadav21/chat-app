@@ -5,6 +5,8 @@ const { Server } = require("socket.io");
 const mongoose = require("mongoose");
 const Message = require("./models/Message");
 
+let onlineUsers = {};
+
 // ✅ MongoDB Connection
 mongoose
   .connect(process.env.MONGO_URI)
@@ -26,10 +28,14 @@ const io = new Server(server, {
 io.on("connection", (socket) => {
   console.log(`User Connected: ${socket.id}`);
 
-  // 🔹 Join Room + Load Old Messages
-  socket.on("join_room", async (room) => {
+  // 🔹 Join Room + Load Messages + Track Online Users
+  socket.on("join_room", async ({ room, username }) => {
     socket.join(room);
-    console.log(`User ${socket.id} joined room ${room}`);
+
+    // store user
+    onlineUsers[socket.id] = { username, room };
+
+    console.log(`${username} joined room ${room}`);
 
     try {
       const messages = await Message.find({ room });
@@ -37,6 +43,13 @@ io.on("connection", (socket) => {
     } catch (err) {
       console.log(err);
     }
+
+    // send updated online users
+    const usersInRoom = Object.values(onlineUsers).filter(
+      (user) => user.room === room
+    );
+
+    io.to(room).emit("online_users", usersInRoom);
   });
 
   // 🔹 Send Message + Save to DB
@@ -60,13 +73,25 @@ io.on("connection", (socket) => {
     socket.to(room).emit("hide_typing");
   });
 
-  // 🔹 Disconnect
+  // 🔹 Disconnect → update online users
   socket.on("disconnect", () => {
+    const user = onlineUsers[socket.id];
+
+    if (user) {
+      delete onlineUsers[socket.id];
+
+      const usersInRoom = Object.values(onlineUsers).filter(
+        (u) => u.room === user.room
+      );
+
+      io.to(user.room).emit("online_users", usersInRoom);
+    }
+
     console.log("User Disconnected", socket.id);
   });
 });
 
-// ✅ Start Server
+// ✅ Start Server (OUTSIDE connection)
 const PORT = process.env.PORT || 5001;
 
 server.listen(PORT, () => {
