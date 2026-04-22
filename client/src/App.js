@@ -13,7 +13,7 @@ function App() {
   const [typingStatus, setTypingStatus] = useState("");
   const [onlineUsers, setOnlineUsers] = useState([]);
 
-  // ✅ Auto join after refresh
+  // ✅ Auto join after refresh (FIXED)
   useEffect(() => {
     const savedUsername = localStorage.getItem("username");
     const savedRoom = localStorage.getItem("room");
@@ -23,22 +23,23 @@ function App() {
       setRoom(savedRoom);
       setShowChat(true);
 
-      socket.emit("join_room", savedRoom);
+      // 🔥 FIX: send both username + room
+      socket.emit("join_room", { room: savedRoom, username: savedUsername });
     }
   }, []);
 
   // ✅ Socket listeners
   useEffect(() => {
     socket.on("load_messages", (data) => {
-      console.log("Loaded messages:", data);
       setMessageList(data);
     });
 
     socket.on("receive_message", (data) => {
       setMessageList((list) => [...list, data]);
     });
+
     socket.on("online_users", (users) => {
-    setOnlineUsers(users);
+      setOnlineUsers(users);
     });
 
     socket.on("show_typing", () => {
@@ -61,7 +62,7 @@ function App() {
   // ✅ Join room
   const joinRoom = () => {
     if (username !== "" && room !== "") {
-      socket.emit("join_room", {room, username });
+      socket.emit("join_room", { room, username });
 
       localStorage.setItem("username", username);
       localStorage.setItem("room", room);
@@ -81,7 +82,7 @@ function App() {
       };
 
       await socket.emit("send_message", messageData);
-      
+
       setCurrentMessage("");
       socket.emit("stop_typing", room);
     }
@@ -99,102 +100,101 @@ function App() {
   };
 
   return (
-  <div style={{ fontFamily: "Arial", background: "#ece5dd", height: "100vh" }}>
-    {!showChat ? (
-      <div style={{ textAlign: "center", paddingTop: "100px" }}>
-        <h2>Join Chat</h2>
-        <input
-          placeholder="Username..."
-          onChange={(e) => setUsername(e.target.value)}
-        />
-        <br /><br />
-        <input
-          placeholder="Room ID..."
-          onChange={(e) => setRoom(e.target.value)}
-        />
-        <br /><br />
-        <button onClick={joinRoom}>Join Chat</button>
-      </div>
-    ) : (
-      <div style={{ maxWidth: "600px", margin: "auto", paddingTop: "20px" }}>
-        <h3>Room: {room}</h3>
-
-        {/* 🔥 ONLINE USERS SECTION */}
-        <div
-          style={{
-            background: "#fff",
-            padding: "10px",
-            borderRadius: "10px",
-            marginBottom: "10px",
-          }}
-        >
-          <h4>Online Users</h4>
-
-          {onlineUsers.map((user, index) => (
-            <div
-              key={index}
-              style={{ display: "flex", alignItems: "center" }}
-            >
-              <span style={{ color: "green", marginRight: "8px" }}>●</span>
-              {user.username}
-            </div>
-          ))}
+    <div style={{ fontFamily: "Arial", background: "#ece5dd", height: "100vh" }}>
+      {!showChat ? (
+        <div style={{ textAlign: "center", paddingTop: "100px" }}>
+          <h2>Join Chat</h2>
+          <input
+            placeholder="Username..."
+            onChange={(e) => setUsername(e.target.value)}
+          />
+          <br /><br />
+          <input
+            placeholder="Room ID..."
+            onChange={(e) => setRoom(e.target.value)}
+          />
+          <br /><br />
+          <button onClick={joinRoom}>Join Chat</button>
         </div>
+      ) : (
+        <div style={{ maxWidth: "600px", margin: "auto", paddingTop: "20px" }}>
+          <h3>Room: {room}</h3>
 
-        {/* 🔹 CHAT MESSAGES */}
-        <div
-          style={{
-            height: "400px",
-            overflowY: "scroll",
-            background: "#fff",
-            padding: "10px",
-            borderRadius: "10px",
-          }}
-        >
-          {messageList.map((msg, index) => (
-            <div
-              key={index}
-              style={{
-                textAlign: username === msg.author ? "right" : "left",
-                margin: "10px",
-              }}
-            >
+          {/* 🔥 ONLINE USERS */}
+          <div
+            style={{
+              background: "#fff",
+              padding: "10px",
+              borderRadius: "10px",
+              marginBottom: "10px",
+            }}
+          >
+            <h4>Online Users</h4>
+            {onlineUsers.map((user, index) => (
+              <div key={index} style={{ display: "flex", alignItems: "center" }}>
+                <span style={{ color: "green", marginRight: "8px" }}>●</span>
+                {user.username}
+              </div>
+            ))}
+          </div>
+
+          {/* 🔹 MESSAGES */}
+          <div
+            style={{
+              height: "400px",
+              overflowY: "scroll",
+              background: "#fff",
+              padding: "10px",
+              borderRadius: "10px",
+            }}
+          >
+            {messageList.map((msg, index) => (
               <div
+                key={index}
                 style={{
-                  display: "inline-block",
-                  padding: "10px",
-                  borderRadius: "10px",
-                  background:
-                    username === msg.author ? "#dcf8c6" : "#fff",
+                  textAlign: username === msg.author ? "right" : "left",
+                  margin: "10px",
                 }}
               >
-                <p>{msg.message}</p>
-                <small>
-                  {msg.author} | {msg.time}
-                </small>
+                <div
+                  style={{
+                    display: "inline-block",
+                    padding: "10px",
+                    borderRadius: "10px",
+                    background:
+                      username === msg.author ? "#dcf8c6" : "#fff",
+                  }}
+                >
+                  <p>{msg.message}</p>
+                  <small>
+                    {msg.author} | {msg.time}
+                  </small>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          <p>{typingStatus}</p>
+
+          {/* 🔹 INPUT */}
+          <input
+            type="text"
+            value={currentMessage}
+            placeholder="Type message..."
+            onChange={handleTyping}
+            onKeyPress={(e) => {
+              if (e.key === "Enter") {
+                sendMessage();
+              }
+            }}
+            style={{ width: "80%", padding: "10px" }}
+          />
+
+          <button onClick={sendMessage}>Send</button>
         </div>
+      )}
+    </div>
+  );
+}
 
-        <p>{typingStatus}</p>
-
-        {/* 🔹 INPUT */}
-        <input
-          type="text"
-          value={currentMessage}
-          placeholder="Type message..."
-          onChange={handleTyping}
-          onKeyPress={(e) => {
-            if (e.key === "Enter") {
-              sendMessage();
-            }
-          }}
-          style={{ width: "80%", padding: "10px" }}
-        />
-
-        <button onClick={sendMessage}>Send</button>
-      </div>
-    )}
-  </div>
-);
+export default App;
