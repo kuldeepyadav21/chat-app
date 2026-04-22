@@ -13,19 +13,9 @@ function App() {
   const [typingStatus, setTypingStatus] = useState("");
   const [onlineUsers, setOnlineUsers] = useState([]);
 
-  // ✅ Auto join after refresh (FIXED)
+  // 🔥 FORCE JOIN SCREEN ALWAYS
   useEffect(() => {
-    const savedUsername = localStorage.getItem("username");
-    const savedRoom = localStorage.getItem("room");
-
-    if (savedUsername && savedRoom) {
-      setUsername(savedUsername);
-      setRoom(savedRoom);
-      setShowChat(true);
-
-      // 🔥 FIX: send both username + room
-      socket.emit("join_room", { room: savedRoom, username: savedUsername });
-    }
+    setShowChat(false);
   }, []);
 
   // ✅ Socket listeners
@@ -61,19 +51,15 @@ function App() {
 
   // ✅ Join room
   const joinRoom = () => {
-    if (username !== "" && room !== "") {
+    if (username.trim() !== "" && room.trim() !== "") {
       socket.emit("join_room", { room, username });
-
-      localStorage.setItem("username", username);
-      localStorage.setItem("room", room);
-
       setShowChat(true);
     }
   };
 
   // ✅ Send message
   const sendMessage = async () => {
-    if (currentMessage !== "") {
+    if (currentMessage.trim() !== "") {
       const messageData = {
         room: room,
         author: username,
@@ -81,7 +67,7 @@ function App() {
         time: new Date().toLocaleTimeString(),
       };
 
-      await socket.emit("send_message", messageData);
+      socket.emit("send_message", messageData);
 
       setCurrentMessage("");
       socket.emit("stop_typing", room);
@@ -104,16 +90,23 @@ function App() {
       {!showChat ? (
         <div style={{ textAlign: "center", paddingTop: "100px" }}>
           <h2>Join Chat</h2>
+
           <input
             placeholder="Username..."
+            value={username}
             onChange={(e) => setUsername(e.target.value)}
           />
+
           <br /><br />
+
           <input
             placeholder="Room ID..."
+            value={room}
             onChange={(e) => setRoom(e.target.value)}
           />
+
           <br /><br />
+
           <button onClick={joinRoom}>Join Chat</button>
         </div>
       ) : (
@@ -130,12 +123,17 @@ function App() {
             }}
           >
             <h4>Online Users</h4>
-            {onlineUsers.map((user, index) => (
-              <div key={index} style={{ display: "flex", alignItems: "center" }}>
-                <span style={{ color: "green", marginRight: "8px" }}>●</span>
-                {user.username}
-              </div>
-            ))}
+
+            {onlineUsers.length === 0 ? (
+              <p>No users online</p>
+            ) : (
+              onlineUsers.map((user, index) => (
+                <div key={index} style={{ display: "flex", alignItems: "center" }}>
+                  <span style={{ color: "green", marginRight: "8px" }}>●</span>
+                  {user.username}
+                </div>
+              ))
+            )}
           </div>
 
           {/* 🔹 MESSAGES */}
@@ -182,7 +180,7 @@ function App() {
             value={currentMessage}
             placeholder="Type message..."
             onChange={handleTyping}
-            onKeyPress={(e) => {
+            onKeyDown={(e) => {
               if (e.key === "Enter") {
                 sendMessage();
               }
