@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
+import "./App.css";
 
 const socket = io("https://chat-app-server-qklq.onrender.com");
 
@@ -13,7 +14,9 @@ function App() {
   const [typingStatus, setTypingStatus] = useState("");
   const [onlineUsers, setOnlineUsers] = useState([]);
 
-  // 🔥 FORCE JOIN SCREEN ALWAYS
+  const chatEndRef = useRef(null);
+
+  // 🔥 Force join screen
   useEffect(() => {
     setShowChat(false);
   }, []);
@@ -49,6 +52,11 @@ function App() {
     };
   }, []);
 
+  // ✅ Auto scroll
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messageList]);
+
   // ✅ Join room
   const joinRoom = () => {
     if (username.trim() !== "" && room.trim() !== "") {
@@ -58,7 +66,7 @@ function App() {
   };
 
   // ✅ Send message
-  const sendMessage = async () => {
+  const sendMessage = () => {
     if (currentMessage.trim() !== "") {
       const messageData = {
         room: room,
@@ -69,6 +77,7 @@ function App() {
 
       socket.emit("send_message", messageData);
 
+      setMessageList((list) => [...list, messageData]);
       setCurrentMessage("");
       socket.emit("stop_typing", room);
     }
@@ -86,9 +95,9 @@ function App() {
   };
 
   return (
-    <div style={{ fontFamily: "Arial", background: "#ece5dd", height: "100vh" }}>
+    <div className="app">
       {!showChat ? (
-        <div style={{ textAlign: "center", paddingTop: "100px" }}>
+        <div className="join-container">
           <h2>Join Chat</h2>
 
           <input
@@ -97,39 +106,28 @@ function App() {
             onChange={(e) => setUsername(e.target.value)}
           />
 
-          <br /><br />
-
           <input
             placeholder="Room ID..."
             value={room}
             onChange={(e) => setRoom(e.target.value)}
           />
 
-          <br /><br />
-
           <button onClick={joinRoom}>Join Chat</button>
         </div>
       ) : (
-        <div style={{ maxWidth: "600px", margin: "auto", paddingTop: "20px" }}>
+        <div className="chat-container">
           <h3>Room: {room}</h3>
 
           {/* 🔥 ONLINE USERS */}
-          <div
-            style={{
-              background: "#fff",
-              padding: "10px",
-              borderRadius: "10px",
-              marginBottom: "10px",
-            }}
-          >
+          <div className="online-users">
             <h4>Online Users</h4>
 
             {onlineUsers.length === 0 ? (
               <p>No users online</p>
             ) : (
               onlineUsers.map((user, index) => (
-                <div key={index} style={{ display: "flex", alignItems: "center" }}>
-                  <span style={{ color: "green", marginRight: "8px" }}>●</span>
+                <div key={index} className="user">
+                  <span className="dot"></span>
                   {user.username}
                 </div>
               ))
@@ -137,31 +135,22 @@ function App() {
           </div>
 
           {/* 🔹 MESSAGES */}
-          <div
-            style={{
-              height: "400px",
-              overflowY: "scroll",
-              background: "#fff",
-              padding: "10px",
-              borderRadius: "10px",
-            }}
-          >
+          <div className="chat-box">
             {messageList.map((msg, index) => (
               <div
                 key={index}
-                style={{
-                  textAlign: username === msg.author ? "right" : "left",
-                  margin: "10px",
-                }}
+                className={
+                  msg.author === username
+                    ? "message-row right"
+                    : "message-row left"
+                }
               >
                 <div
-                  style={{
-                    display: "inline-block",
-                    padding: "10px",
-                    borderRadius: "10px",
-                    background:
-                      username === msg.author ? "#dcf8c6" : "#fff",
-                  }}
+                  className={
+                    msg.author === username
+                      ? "message sent"
+                      : "message received"
+                  }
                 >
                   <p>{msg.message}</p>
                   <small>
@@ -170,25 +159,28 @@ function App() {
                 </div>
               </div>
             ))}
+
+            <div ref={chatEndRef}></div>
           </div>
 
-          <p>{typingStatus}</p>
+          <p className="typing">{typingStatus}</p>
 
           {/* 🔹 INPUT */}
-          <input
-            type="text"
-            value={currentMessage}
-            placeholder="Type message..."
-            onChange={handleTyping}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                sendMessage();
-              }
-            }}
-            style={{ width: "80%", padding: "10px" }}
-          />
+          <div className="input-area">
+            <input
+              type="text"
+              value={currentMessage}
+              placeholder="Type message..."
+              onChange={handleTyping}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  sendMessage();
+                }
+              }}
+            />
 
-          <button onClick={sendMessage}>Send</button>
+            <button onClick={sendMessage}>Send</button>
+          </div>
         </div>
       )}
     </div>
